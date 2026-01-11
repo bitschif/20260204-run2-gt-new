@@ -1,6 +1,6 @@
 #!/bin/bash
 #===============================================================================
-# CONFIG:  Cấu hình chung cho pipeline variant calling benchmarking
+# CONFIG: Cấu hình chung cho pipeline variant calling benchmarking
 # Theo GATK Best Practices (nf-core/sarek)
 #===============================================================================
 
@@ -39,12 +39,12 @@ export REF_FAI="${REF_DIR}/${CHR_TO_USE}.fa.fai"
 # Known sites for BQSR (GATK Bundle)
 export DBSNP="${REF_DIR}/dbsnp_146.hg38.${CHR_TO_USE}.vcf.gz"
 export KNOWN_INDELS="${REF_DIR}/Mills_and_1000G_gold_standard.indels.hg38.${CHR_TO_USE}.vcf.gz"
-export KNOWN_SNPS="${REF_DIR}/1000G_phase1.snps.high_confidence.hg38.${CHR_TO_USE}.vcf. gz"
+export KNOWN_SNPS="${REF_DIR}/1000G_phase1.snps.high_confidence.hg38.${CHR_TO_USE}.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # SIMULATION PARAMETERS (simutator + ART)
 #-------------------------------------------------------------------------------
-# Simutator:  SNP mỗi 500bp, deletion 3bp mỗi 2000bp, insertion 2bp mỗi 2000bp
+# Simutator: SNP mỗi 500bp, deletion 3bp mỗi 2000bp, insertion 2bp mỗi 2000bp
 export SNP_DIST=500
 export DEL_DIST=2000
 export DEL_LEN=3
@@ -93,9 +93,9 @@ export FB_MIN_ALT_FRACTION=0.2
 #-------------------------------------------------------------------------------
 # OUTPUT
 #-------------------------------------------------------------------------------
-export TRUTH_VCF="${SIM_DIR}/${PREFIX}_truth.vcf. gz"
+export TRUTH_VCF="${SIM_DIR}/${PREFIX}_truth.vcf.gz"
 export HIGH_CONF_BED="${SIM_DIR}/callable_regions.bed"
 
 echo "[CONFIG] Loaded successfully"
-echo "[CONFIG] Project:  ${PROJECT_DIR}"
+echo "[CONFIG] Project: ${PROJECT_DIR}"
 echo "[CONFIG] Chromosome: ${CHR_TO_USE}, Coverage: ${COVERAGE}x"
