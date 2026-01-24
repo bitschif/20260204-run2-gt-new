@@ -115,7 +115,8 @@ bcftools norm \
     -m -both \
     -d both \
     "${RAW_MERGED_VCF}" \
-    -Oz -o "${TRUTH_VCF}"
+    -Ou \
+| bcftools sort -Oz -o "${TRUTH_VCF}" -
 
 tabix -p vcf "${TRUTH_VCF}"
 
