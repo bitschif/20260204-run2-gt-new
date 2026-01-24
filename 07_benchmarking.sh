@@ -14,6 +14,8 @@ source "${SCRIPT_DIR}/scripts/helper_functions.sh"
 log_info "===== STEP 07: Benchmarking ====="
 start_timer
 
+check_tool "bcftools" || exit 1
+
 CALLERS=("gatk" "deepvariant" "strelka2" "freebayes")
 TRUTH_SNP="${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
 TRUTH_INDEL="${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
@@ -44,18 +46,21 @@ benchmark_bcftools() {
     local precision=0
     local recall=0
     local f1=0
-    
-    if [[ $((tp + fp)) -gt 0 ]]; then
-        precision=$(echo "scale=6; ${tp} / (${tp} + ${fp})" | bc)
-    fi
-    
-    if [[ $((tp + fn)) -gt 0 ]]; then
-        recall=$(echo "scale=6; ${tp} / (${tp} + ${fn})" | bc)
-    fi
-    
-    if [[ $(echo "${precision} + ${recall} > 0" | bc) -eq 1 ]]; then
-        f1=$(echo "scale=6; 2 * ${precision} * ${recall} / (${precision} + ${recall})" | bc)
-    fi
+
+    precision=$(awk -v tp="${tp}" -v fp="${fp}" 'BEGIN {
+        denom = tp + fp;
+        if (denom > 0) { printf "%.6f", tp / denom; } else { printf "0"; }
+    }')
+
+    recall=$(awk -v tp="${tp}" -v fn="${fn}" 'BEGIN {
+        denom = tp + fn;
+        if (denom > 0) { printf "%.6f", tp / denom; } else { printf "0"; }
+    }')
+
+    f1=$(awk -v p="${precision}" -v r="${recall}" 'BEGIN {
+        denom = p + r;
+        if (denom > 0) { printf "%.6f", 2 * p * r / denom; } else { printf "0"; }
+    }')
     
     # Write summary
     cat > "${out_dir}/summary.txt" << EOF
@@ -120,7 +125,11 @@ done
 # Summary
 #-------------------------------------------------------------------------------
 log_info "===== Benchmarking Summary ====="
-column -t -s$'\t' "${SUMMARY}"
+if command -v column &>/dev/null; then
+    column -t -s$'\t' "${SUMMARY}"
+else
+    cat "${SUMMARY}"
+fi
 
 end_timer "07_benchmarking"
 log_info "===== Benchmarking Complete ====="
