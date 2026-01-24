@@ -74,6 +74,24 @@ if [[ ! -s "${RAW_VCF}" ]]; then
     exit 1
 fi
 
+# Helper: attempt to index, with a bgzip fallback if the file is plain gzip.
+index_vcf() {
+    local vcf_path="$1"
+    if tabix -f -p vcf "${vcf_path}"; then
+        return 0
+    fi
+    log_warn "tabix indexing failed for ${vcf_path}; attempting bgzip re-compression and retry."
+    if check_tool bgzip; then
+        local tmp_bgz="${vcf_path}.bgz"
+        gunzip -c "${vcf_path}" | bgzip -c > "${tmp_bgz}"
+        mv -f "${tmp_bgz}" "${vcf_path}"
+        tabix -f -p vcf "${vcf_path}"
+        return $?
+    fi
+    log_error "bgzip not available; cannot re-compress ${vcf_path} for tabix indexing."
+    return 1
+}
+
 # Ensure sorted/bgzip for tabix (DeepVariant output can be unsorted)
 SORT_TMP="${OUT_DIR}/intermediate/bcftools_sort"
 ensure_dir "${SORT_TMP}"
@@ -82,17 +100,17 @@ bcftools sort "${RAW_VCF}" -Oz -o "${SORTED_VCF}" -T "${SORT_TMP}"
 mv -f "${SORTED_VCF}" "${RAW_VCF}"
 
 # Index
-tabix -f -p vcf "${RAW_VCF}"
+index_vcf "${RAW_VCF}"
 
 # DeepVariant outputs mostly PASS, but filter to be safe
 bcftools view -f "PASS,." "${RAW_VCF}" -Oz -o "${PASS_VCF}"
-tabix -f -p vcf "${PASS_VCF}"
+index_vcf "${PASS_VCF}"
 
 # Split by type
 bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
-tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
-tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
+index_vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
+index_vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # 4. Stats
