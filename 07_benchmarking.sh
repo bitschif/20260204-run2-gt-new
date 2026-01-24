@@ -2,7 +2,7 @@
 #===============================================================================
 # STEP 07: Benchmarking
 # Compare variant calls against truth set
-# Tools: bcftools isec (fallback), hap.py, RTG Tools
+# Tools: hap.py (Illumina)
 #===============================================================================
 
 set -euo pipefail
@@ -14,67 +14,95 @@ source "${SCRIPT_DIR}/scripts/helper_functions.sh"
 log_info "===== STEP 07: Benchmarking ====="
 start_timer
 
-check_tool "bcftools" || exit 1
+check_tool "hap.py" || exit 1
+if command -v python3 &>/dev/null; then
+    PYTHON_BIN="python3"
+elif command -v python &>/dev/null; then
+    PYTHON_BIN="python"
+else
+    log_error "Python not found for parsing hap.py summary"
+    exit 1
+fi
 
 CALLERS=("gatk" "deepvariant" "strelka2" "freebayes")
 TRUTH_SNP="${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
 TRUTH_INDEL="${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 
 check_file "${TRUTH_VCF}" || exit 1
+check_file "${HIGH_CONF_BED}" || exit 1
+check_file "${REF_FASTA}" || exit 1
 
 #-------------------------------------------------------------------------------
-# Function:  Benchmark with bcftools isec
+# Function: Benchmark with hap.py
 #-------------------------------------------------------------------------------
-benchmark_bcftools() {
+benchmark_happy() {
     local caller=$1
     local query_vcf=$2
     local truth_vcf=$3
-    local out_dir=$4
-    local vtype=$5
+    local out_prefix=$4
     
-    ensure_dir "${out_dir}"
-    
-    # Intersection
-    bcftools isec -p "${out_dir}" -Oz "${truth_vcf}" "${query_vcf}" 2>/dev/null || true
-    
-    # Count:  0000=FN, 0001=FP, 0002=TP(truth), 0003=TP(query)
-    local fn=$(bcftools view -H "${out_dir}/0000.vcf.gz" 2>/dev/null | wc -l || echo 0)
-    local fp=$(bcftools view -H "${out_dir}/0001.vcf.gz" 2>/dev/null | wc -l || echo 0)
-    local tp=$(bcftools view -H "${out_dir}/0002.vcf.gz" 2>/dev/null | wc -l || echo 0)
-    
-    # Calculate metrics
-    local precision=0
-    local recall=0
-    local f1=0
+    ensure_dir "$(dirname "${out_prefix}")"
+    hap.py "${truth_vcf}" "${query_vcf}" \
+        -f "${HIGH_CONF_BED}" \
+        -r "${REF_FASTA}" \
+        -o "${out_prefix}"
+}
 
-    precision=$(awk -v tp="${tp}" -v fp="${fp}" 'BEGIN {
-        denom = tp + fp;
-        if (denom > 0) { printf "%.6f", tp / denom; } else { printf "0"; }
-    }')
+parse_happy_summary() {
+    local summary_csv=$1
+    local caller=$2
 
-    recall=$(awk -v tp="${tp}" -v fn="${fn}" 'BEGIN {
-        denom = tp + fn;
-        if (denom > 0) { printf "%.6f", tp / denom; } else { printf "0"; }
-    }')
+    "${PYTHON_BIN}" - "${summary_csv}" "${caller}" <<'PY'
+import csv
+import re
+import sys
 
-    f1=$(awk -v p="${precision}" -v r="${recall}" 'BEGIN {
-        denom = p + r;
-        if (denom > 0) { printf "%.6f", 2 * p * r / denom; } else { printf "0"; }
-    }')
-    
-    # Write summary
-    cat > "${out_dir}/summary.txt" << EOF
-Caller: ${caller}
-VariantType: ${vtype}
-TP: ${tp}
-FP: ${fp}
-FN:  ${fn}
-Precision: ${precision}
-Recall: ${recall}
-F1: ${f1}
-EOF
-    
-    echo -e "${caller}\t${vtype}\t${tp}\t${fp}\t${fn}\t${precision}\t${recall}\t${f1}"
+summary_csv, caller = sys.argv[1:3]
+
+def norm(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+with open(summary_csv, newline="") as handle:
+    reader = csv.DictReader(handle)
+    if reader.fieldnames is None:
+        sys.exit(0)
+    normalized = {norm(name): name for name in reader.fieldnames}
+
+    def pick(*names):
+        for name in names:
+            key = norm(name)
+            if key in normalized:
+                return normalized[key]
+        return None
+
+    type_key = pick("type")
+    tp_key = pick("tp")
+    fp_key = pick("fp")
+    fn_key = pick("fn")
+    precision_key = pick("precision", "prec")
+    recall_key = pick("recall")
+    f1_key = pick("f1", "f1score")
+
+    if not all([type_key, tp_key, fp_key, fn_key, precision_key, recall_key, f1_key]):
+        sys.exit(0)
+
+    wanted = {
+        "ALL": {"all", "total", "overall"},
+        "SNP": {"snp"},
+        "INDEL": {"indel"},
+    }
+
+    for row in reader:
+        row_type = row.get(type_key, "").strip().lower()
+        for out_type, labels in wanted.items():
+            if row_type in labels:
+                print(
+                    f"{caller}\t{out_type}\t"
+                    f"{row.get(tp_key, '')}\t{row.get(fp_key, '')}\t{row.get(fn_key, '')}\t"
+                    f"{row.get(precision_key, '')}\t{row.get(recall_key, '')}\t{row.get(f1_key, '')}"
+                )
+                break
+PY
 }
 
 #-------------------------------------------------------------------------------
@@ -98,26 +126,15 @@ for caller in "${CALLERS[@]}"; do
     BENCH_CALLER="${BENCH_DIR}/${caller}"
     ensure_dir "${BENCH_CALLER}"
     
-    # Benchmark ALL variants
-    log_info "  ALL variants..."
-    result=$(benchmark_bcftools "${caller}" "${QUERY_VCF}" "${TRUTH_VCF}" \
-        "${BENCH_CALLER}/all" "ALL")
-    echo "${result}" >> "${SUMMARY}"
-    
-    # Benchmark SNPs
-    if [[ -f "${QUERY_SNP}" ]] && [[ -f "${TRUTH_SNP}" ]]; then
-        log_info "  SNPs..."
-        result=$(benchmark_bcftools "${caller}" "${QUERY_SNP}" "${TRUTH_SNP}" \
-            "${BENCH_CALLER}/snp" "SNP")
-        echo "${result}" >> "${SUMMARY}"
-    fi
-    
-    # Benchmark INDELs
-    if [[ -f "${QUERY_INDEL}" ]] && [[ -f "${TRUTH_INDEL}" ]]; then
-        log_info "  INDELs..."
-        result=$(benchmark_bcftools "${caller}" "${QUERY_INDEL}" "${TRUTH_INDEL}" \
-            "${BENCH_CALLER}/indel" "INDEL")
-        echo "${result}" >> "${SUMMARY}"
+    log_info "  hap.py..."
+    HAPPY_PREFIX="${BENCH_CALLER}/happy/${PREFIX}_${caller}"
+    benchmark_happy "${caller}" "${QUERY_VCF}" "${TRUTH_VCF}" "${HAPPY_PREFIX}"
+
+    SUMMARY_CSV="${HAPPY_PREFIX}.summary.csv"
+    if [[ -f "${SUMMARY_CSV}" ]]; then
+        parse_happy_summary "${SUMMARY_CSV}" "${caller}" >> "${SUMMARY}"
+    else
+        log_warn "  hap.py summary not found for ${caller}"
     fi
 done
 
