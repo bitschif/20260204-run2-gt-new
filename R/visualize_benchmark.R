@@ -180,10 +180,24 @@ for (col in metric_cols) {
   }
 }
 
+mean_or_na <- function(x) {
+  x <- as.numeric(x)
+  if (all(is.na(x))) {
+    NA_real_
+  } else {
+    mean(x, na.rm = TRUE)
+  }
+}
+
 m <- m_raw %>%
   mutate(
     Type = factor(Type, levels = c("SNP", "INDEL")),
     caller = factor(caller, levels = caller_levels)
+  ) %>%
+  group_by(caller, Type) %>%
+  summarise(
+    across(all_of(metric_cols), mean_or_na),
+    .groups = "drop"
   ) %>%
   filter(if_any(all_of(metric_cols), is.finite))
 
