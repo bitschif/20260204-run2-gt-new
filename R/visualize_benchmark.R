@@ -4,6 +4,7 @@ suppressPackageStartupMessages({
   library(tidyverse)
   library(data.table)
   library(pheatmap)
+  library(jsonlite)
 })
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -14,8 +15,118 @@ runtime_tsv  <- file.path(project_dir, "results", "runtime.tsv")
 bench_dir    <- file.path(project_dir, "results", "benchmarks")
 plot_dir     <- file.path(project_dir, "results", "plots")
 
-if (!file.exists(metrics_long)) stop("Missing results/metrics_long.tsv. Run hap.py and metrics export first.")
-if (!file.exists(runtime_tsv))  stop("Missing results/runtime.tsv. Run runtime export first.")
+if (!file.exists(metrics_long)) {
+  metrics_json <- list.files(
+    bench_dir,
+    pattern = "\\.metrics\\.json\\.gz$",
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  summary_csv <- list.files(
+    bench_dir,
+    pattern = "\\.summary\\.csv$",
+    recursive = TRUE,
+    full.names = TRUE
+  )
+  metric_files <- list.files(bench_dir, pattern = "_metrics\\.tsv$", recursive = TRUE, full.names = TRUE)
+
+  if (length(metrics_json) == 0 && length(summary_csv) == 0 && length(metric_files) == 0) {
+    stop("Missing results/metrics_long.tsv and no hap.py metrics files found under results/benchmarks.")
+  }
+
+  get_caller <- function(path) {
+    parent <- dirname(path)
+    if (basename(parent) == "happy") {
+      return(basename(dirname(parent)))
+    }
+    basename(parent)
+  }
+
+  read_metrics_json <- function(path) {
+    raw <- jsonlite::fromJSON(gzfile(path), flatten = TRUE)
+    metrics <- raw
+    if ("metrics" %in% names(raw)) {
+      metrics <- raw$metrics
+    } else if ("summary" %in% names(raw)) {
+      metrics <- raw$summary
+    }
+    metrics_tbl <- as_tibble(metrics)
+    if (!"Type" %in% names(metrics_tbl) && "type" %in% names(metrics_tbl)) {
+      metrics_tbl <- metrics_tbl %>% rename(Type = type)
+    }
+    caller <- get_caller(path)
+    metrics_tbl %>% mutate(caller = caller)
+  }
+
+  read_summary_csv <- function(path) {
+    df <- suppressMessages(readr::read_csv(path, show_col_types = FALSE))
+    caller <- get_caller(path)
+    df %>% mutate(caller = caller)
+  }
+
+  metrics_raw <- list()
+  if (length(metrics_json) > 0) {
+    metrics_raw <- append(metrics_raw, list(map_dfr(metrics_json, read_metrics_json)))
+  }
+  if (length(summary_csv) > 0) {
+    metrics_raw <- append(metrics_raw, list(map_dfr(summary_csv, read_summary_csv)))
+  }
+  if (length(metric_files) > 0) {
+    metrics_raw <- append(metrics_raw, list(map_dfr(metric_files, ~fread(.x) %>% as_tibble())))
+  }
+
+  metrics_long_data <- bind_rows(metrics_raw) %>%
+    rename(
+      Type = any_of(c("VariantType", "Type")),
+      `METRIC.Precision` = any_of(c("Precision", "METRIC.Precision")),
+      `METRIC.Recall` = any_of(c("Recall", "METRIC.Recall")),
+      `METRIC.F1_Score` = any_of(c("F1", "METRIC.F1_Score", "F1_Score"))
+    ) %>%
+    select(caller, any_of("Type"), any_of(c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score")))
+
+  if (!"Type" %in% names(metrics_long_data)) {
+    metrics_long_data$Type <- NA_character_
+  }
+
+  for (col in c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score")) {
+    if (!col %in% names(metrics_long_data)) {
+      metrics_long_data[[col]] <- NA_character_
+    }
+  }
+
+  coerce_atomic <- function(x) {
+    if (is.list(x)) {
+      vapply(x, function(value) {
+        if (length(value) == 0) {
+          NA_character_
+        } else {
+          as.character(value[[1]])
+        }
+      }, character(1))
+    } else {
+      x
+    }
+  }
+
+  metrics_long_data <- metrics_long_data %>%
+    mutate(across(everything(), coerce_atomic)) %>%
+    mutate(
+      `METRIC.Precision` = as.numeric(`METRIC.Precision`),
+      `METRIC.Recall` = as.numeric(`METRIC.Recall`),
+      `METRIC.F1_Score` = as.numeric(`METRIC.F1_Score`)
+    ) %>%
+    mutate(
+      caller = tolower(caller),
+      Type = toupper(Type)
+    )
+
+  fwrite(metrics_long_data, metrics_long, sep = "\t")
+}
+
+has_runtime <- file.exists(runtime_tsv)
+if (!has_runtime) {
+  warning("Missing results/runtime.tsv. Skipping runtime plots.")
+}
 
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
 
@@ -88,23 +199,25 @@ dev.off()
 # -------------------------
 # 4) Runtime plot (wall + max RSS)
 # -------------------------
-rt <- fread(runtime_tsv) %>%
-  as_tibble() %>%
-  mutate(caller = factor(caller, levels = caller_levels))
+if (has_runtime) {
+  rt <- fread(runtime_tsv) %>%
+    as_tibble() %>%
+    mutate(caller = factor(caller, levels = caller_levels))
 
-p_time <- ggplot(rt, aes(x = caller, y = wall_s, fill = step)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  labs(title = "Runtime (wall seconds) theo buoc", x = "Caller", y = "Wall time (s)") +
-  theme_bw()
+  p_time <- ggplot(rt, aes(x = caller, y = wall_s, fill = step)) +
+    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+    labs(title = "Runtime (wall seconds) theo buoc", x = "Caller", y = "Wall time (s)") +
+    theme_bw()
 
-ggsave(file.path(plot_dir, "03_runtime_wall.png"), p_time, width = 10, height = 4, dpi = 200)
+  ggsave(file.path(plot_dir, "03_runtime_wall.png"), p_time, width = 10, height = 4, dpi = 200)
 
-p_mem <- ggplot(rt, aes(x = caller, y = max_rss_kb / 1024, fill = step)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  labs(title = "Max RSS theo buoc", x = "Caller", y = "Max RSS (MB)") +
-  theme_bw()
+  p_mem <- ggplot(rt, aes(x = caller, y = max_rss_kb / 1024, fill = step)) +
+    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+    labs(title = "Max RSS theo buoc", x = "Caller", y = "Max RSS (MB)") +
+    theme_bw()
 
-ggsave(file.path(plot_dir, "04_runtime_maxrss.png"), p_mem, width = 10, height = 4, dpi = 200)
+  ggsave(file.path(plot_dir, "04_runtime_maxrss.png"), p_mem, width = 10, height = 4, dpi = 200)
+}
 
 # -------------------------
 # 5) PR curves from hap.py roc outputs
