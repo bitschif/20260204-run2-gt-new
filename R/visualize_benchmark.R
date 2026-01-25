@@ -12,8 +12,10 @@ project_dir <- if (length(args) > 0) normalizePath(args[1]) else normalizePath("
 
 metrics_long <- file.path(project_dir, "results", "metrics_long.tsv")
 runtime_tsv  <- file.path(project_dir, "results", "runtime.tsv")
+runtime_csv  <- file.path(project_dir, "logs", "runtime.csv")
 bench_dir    <- file.path(project_dir, "results", "benchmarks")
 plot_dir     <- file.path(project_dir, "results", "plots")
+metrics_combined <- file.path(project_dir, "results", "metrics_combined.tsv")
 
 if (!file.exists(metrics_long)) {
   metrics_json <- list.files(
@@ -75,20 +77,35 @@ if (!file.exists(metrics_long)) {
     metrics_raw <- append(metrics_raw, list(map_dfr(metric_files, ~fread(.x) %>% as_tibble())))
   }
 
-  metrics_long_data <- bind_rows(metrics_raw) %>%
+  metrics_long_data <- bind_rows(metrics_raw)
+
+  if (nrow(metrics_long_data) == 0) {
+    stop("No metrics data found after loading available hap.py metrics.")
+  }
+
+  if (!is.null(metrics_long_data) && nrow(metrics_long_data) > 0) {
+    fwrite(metrics_long_data, metrics_combined, sep = "\t")
+  }
+
+  metrics_long_data <- metrics_long_data %>%
     rename(
       Type = any_of(c("VariantType", "Type")),
       `METRIC.Precision` = any_of(c("Precision", "METRIC.Precision")),
       `METRIC.Recall` = any_of(c("Recall", "METRIC.Recall")),
-      `METRIC.F1_Score` = any_of(c("F1", "METRIC.F1_Score", "F1_Score"))
+      `METRIC.F1_Score` = any_of(c("F1", "METRIC.F1_Score", "F1_Score")),
+      `METRIC.ROC_AUC` = any_of(c("ROC", "ROC_AUC", "METRIC.ROC_AUC", "METRIC.RocAuc"))
     ) %>%
-    select(caller, any_of("Type"), any_of(c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score")))
+    select(
+      caller,
+      any_of("Type"),
+      any_of(c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score", "METRIC.ROC_AUC"))
+    )
 
   if (!"Type" %in% names(metrics_long_data)) {
     metrics_long_data$Type <- NA_character_
   }
 
-  for (col in c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score")) {
+  for (col in c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score", "METRIC.ROC_AUC")) {
     if (!col %in% names(metrics_long_data)) {
       metrics_long_data[[col]] <- NA_character_
     }
@@ -108,24 +125,42 @@ if (!file.exists(metrics_long)) {
     }
   }
 
+  mean_or_na <- function(x) {
+    if (all(is.na(x))) {
+      NA_real_
+    } else {
+      mean(x, na.rm = TRUE)
+    }
+  }
+
   metrics_long_data <- metrics_long_data %>%
     mutate(across(everything(), coerce_atomic)) %>%
     mutate(
       `METRIC.Precision` = as.numeric(`METRIC.Precision`),
       `METRIC.Recall` = as.numeric(`METRIC.Recall`),
-      `METRIC.F1_Score` = as.numeric(`METRIC.F1_Score`)
+      `METRIC.F1_Score` = as.numeric(`METRIC.F1_Score`),
+      `METRIC.ROC_AUC` = as.numeric(`METRIC.ROC_AUC`)
     ) %>%
     mutate(
       caller = tolower(caller),
       Type = toupper(Type)
+    ) %>%
+    group_by(caller, Type) %>%
+    summarise(
+      `METRIC.Precision` = mean_or_na(`METRIC.Precision`),
+      `METRIC.Recall` = mean_or_na(`METRIC.Recall`),
+      `METRIC.F1_Score` = mean_or_na(`METRIC.F1_Score`),
+      `METRIC.ROC_AUC` = mean_or_na(`METRIC.ROC_AUC`),
+      .groups = "drop"
     )
 
   fwrite(metrics_long_data, metrics_long, sep = "\t")
 }
 
-has_runtime <- file.exists(runtime_tsv)
-if (!has_runtime) {
-  warning("Missing results/runtime.tsv. Skipping runtime plots.")
+has_runtime_csv <- file.exists(runtime_csv)
+has_runtime_tsv <- file.exists(runtime_tsv)
+if (!has_runtime_csv && !has_runtime_tsv) {
+  warning("Missing logs/runtime.csv and results/runtime.tsv. Skipping runtime plots.")
 }
 
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
@@ -140,7 +175,8 @@ m <- fread(metrics_long) %>%
   mutate(
     Type = factor(Type, levels = c("SNP", "INDEL")),
     caller = factor(caller, levels = caller_levels)
-  )
+  ) %>%
+  filter(if_any(c(`METRIC.Recall`, `METRIC.Precision`, `METRIC.F1_Score`, `METRIC.ROC_AUC`), is.finite))
 
 # -------------------------
 # 2) Barplots: Precision/Recall/F1 (separate SNP vs INDEL)
@@ -151,13 +187,15 @@ m_long <- m %>%
     Type,
     recall = `METRIC.Recall`,
     precision = `METRIC.Precision`,
-    f1 = `METRIC.F1_Score`
+    f1 = `METRIC.F1_Score`,
+    roc = `METRIC.ROC_AUC`
   ) %>%
   pivot_longer(
-    cols = c(recall, precision, f1),
+    cols = c(recall, precision, f1, roc),
     names_to = "metric",
     values_to = "value"
-  )
+  ) %>%
+  filter(is.finite(value))
 
 p_bar <- ggplot(m_long, aes(x = caller, y = value, fill = metric)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7) +
@@ -171,7 +209,7 @@ p_bar <- ggplot(m_long, aes(x = caller, y = value, fill = metric)) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 20, hjust = 1))
 
-ggsave(file.path(plot_dir, "01_bar_precision_recall_f1.png"), p_bar, width = 12, height = 4, dpi = 200)
+ggsave(file.path(plot_dir, "01_bar_precision_recall_f1_roc.png"), p_bar, width = 12, height = 4, dpi = 200)
 
 # -------------------------
 # 3) Heatmap: F1 only (SNP/INDEL)
@@ -199,7 +237,17 @@ dev.off()
 # -------------------------
 # 4) Runtime plot (wall + max RSS)
 # -------------------------
-if (has_runtime) {
+if (has_runtime_csv) {
+  rt <- suppressMessages(readr::read_csv(runtime_csv, col_names = c("caller", "time_s"), show_col_types = FALSE)) %>%
+    mutate(caller = factor(caller, levels = caller_levels))
+
+  p_time <- ggplot(rt %>% filter(is.finite(time_s)), aes(x = caller, y = time_s)) +
+    geom_col(width = 0.7, fill = "#4C78A8") +
+    labs(title = "Runtime (seconds)", x = "Caller", y = "Time (s)") +
+    theme_bw()
+
+  ggsave(file.path(plot_dir, "03_runtime_time.png"), p_time, width = 10, height = 4, dpi = 200)
+} else if (has_runtime_tsv) {
   rt <- fread(runtime_tsv) %>%
     as_tibble() %>%
     mutate(caller = factor(caller, levels = caller_levels))
