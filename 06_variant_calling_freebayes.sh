@@ -104,6 +104,15 @@ fi
 #-------------------------------------------------------------------------------
 # 5. Benchmarking with hap.py
 #-------------------------------------------------------------------------------
+log_info "Switching to happy-py27 environment for hap.py..."
+if command -v conda &> /dev/null; then
+    # shellcheck disable=SC1091
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    conda activate happy-py27
+else
+    log_warn "conda not found; ensure happy-py27 is active before running hap.py"
+fi
+
 log_info "Benchmarking ${CALLER} with hap.py..."
 
 BENCH_CALLER="${BENCH_DIR}/${CALLER}"
