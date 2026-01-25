@@ -17,6 +17,26 @@ start_timer
 CALLERS=("gatk" "deepvariant" "strelka2" "freebayes")
 
 #-------------------------------------------------------------------------------
+# Run hap.py per caller
+#-------------------------------------------------------------------------------
+for caller in "${CALLERS[@]}"; do
+    case "${caller}" in
+        gatk) HAPPY_SCRIPT="${SCRIPT_DIR}/03_variant_calling_gatk_happy.sh" ;;
+        deepvariant) HAPPY_SCRIPT="${SCRIPT_DIR}/04_variant_calling_deepvariant_happy.sh" ;;
+        strelka2) HAPPY_SCRIPT="${SCRIPT_DIR}/05_variant_calling_strelka2_happy.sh" ;;
+        freebayes) HAPPY_SCRIPT="${SCRIPT_DIR}/06_variant_calling_freebayes_happy.sh" ;;
+        *) HAPPY_SCRIPT="" ;;
+    esac
+
+    if [[ -n "${HAPPY_SCRIPT}" && -f "${HAPPY_SCRIPT}" ]]; then
+        log_info "Running hap.py for ${caller}..."
+        bash "${HAPPY_SCRIPT}"
+    else
+        log_warn "hap.py script not found for ${caller}"
+    fi
+done
+
+#-------------------------------------------------------------------------------
 # Main benchmarking summary
 #-------------------------------------------------------------------------------
 SUMMARY="${BENCH_DIR}/benchmark_summary.tsv"

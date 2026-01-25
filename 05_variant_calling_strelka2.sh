@@ -118,35 +118,7 @@ if [[ ! -f "${TRUTH_NORM}" ]]; then
 fi
 
 #-------------------------------------------------------------------------------
-# 6. Benchmarking with hap.py
-#-------------------------------------------------------------------------------
-log_info "Switching to happy-py27 environment for hap.py..."
-if command -v conda &> /dev/null; then
-    # shellcheck disable=SC1091
-    source "$(conda info --base)/etc/profile.d/conda.sh"
-    conda activate happy-py27
-else
-    log_warn "conda not found; ensure happy-py27 is active before running hap.py"
-fi
-
-log_info "Benchmarking ${CALLER} with hap.py..."
-
-BENCH_CALLER="${BENCH_DIR}/${CALLER}"
-ensure_dir "${BENCH_CALLER}/happy"
-HAPPY_PREFIX="${BENCH_CALLER}/happy/${PREFIX}_${CALLER}"
-run_happy "${TRUTH_NORM}" "${NORMALIZED_VCF}" "${HAPPY_PREFIX}"
-
-SUMMARY_CSV="${HAPPY_PREFIX}.summary.csv"
-METRICS_TSV="${BENCH_CALLER}/${PREFIX}_${CALLER}_metrics.tsv"
-if [[ -f "${SUMMARY_CSV}" ]]; then
-    write_happy_metrics "${SUMMARY_CSV}" "${CALLER}" "${HAPPY_PREFIX}" "${METRICS_TSV}"
-    update_benchmark_summary "${CALLER}" "${METRICS_TSV}"
-else
-    log_warn "hap.py summary not found for ${CALLER}"
-fi
-
-#-------------------------------------------------------------------------------
-# 7. Stats
+# 6. Stats
 #-------------------------------------------------------------------------------
 bcftools stats "${PASS_VCF}" > "${OUT_DIR}/${PREFIX}_${CALLER}_stats.txt"
 
