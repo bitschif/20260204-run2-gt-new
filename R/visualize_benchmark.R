@@ -170,13 +170,22 @@ caller_levels <- c("gatk", "deepvariant", "strelka2", "freebayes")
 # -------------------------
 # 1) Load summary metrics (SNP/INDEL, ALL)
 # -------------------------
-m <- fread(metrics_long) %>%
-  as_tibble() %>%
+metric_cols <- c("METRIC.Recall", "METRIC.Precision", "METRIC.F1_Score", "METRIC.ROC_AUC")
+m_raw <- fread(metrics_long) %>%
+  as_tibble()
+
+for (col in metric_cols) {
+  if (!col %in% names(m_raw)) {
+    m_raw[[col]] <- NA_real_
+  }
+}
+
+m <- m_raw %>%
   mutate(
     Type = factor(Type, levels = c("SNP", "INDEL")),
     caller = factor(caller, levels = caller_levels)
   ) %>%
-  filter(if_any(c(`METRIC.Recall`, `METRIC.Precision`, `METRIC.F1_Score`, `METRIC.ROC_AUC`), is.finite))
+  filter(if_any(all_of(metric_cols), is.finite))
 
 # -------------------------
 # 2) Barplots: Precision/Recall/F1 (separate SNP vs INDEL)
