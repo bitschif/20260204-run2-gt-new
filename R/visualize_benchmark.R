@@ -297,9 +297,19 @@ if (has_runtime_csv) {
 roc_files <- list.files(bench_dir, pattern = "\\.roc\\..*\\.csv\\.gz$", recursive = TRUE, full.names = TRUE)
 
 read_roc <- function(f) {
-  x <- suppressMessages(readr::read_csv(f, show_col_types = FALSE))
+  x <- suppressMessages(readr::read_csv(
+    f,
+    show_col_types = FALSE,
+    col_types = readr::cols(.default = readr::col_character())
+  ))
   caller <- basename(dirname(dirname(f)))
-  x %>% mutate(caller = caller, file = basename(f))
+  x %>%
+    mutate(
+      caller = caller,
+      file = basename(f),
+      `METRIC.Recall` = as.numeric(`METRIC.Recall`),
+      `METRIC.Precision` = as.numeric(`METRIC.Precision`)
+    )
 }
 
 if (length(roc_files) > 0) {
