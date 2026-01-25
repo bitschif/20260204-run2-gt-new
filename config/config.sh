@@ -24,7 +24,7 @@ export LOG_DIR="${PROJECT_DIR}/logs"
 export PREPROC_DIR="${RESULTS_DIR}/preprocessing"
 export VARIANT_DIR="${RESULTS_DIR}/variants"
 export BENCH_DIR="${RESULTS_DIR}/benchmarks"
-export FIGURE_DIR="${RESULTS_DIR}/figures"
+export FIGURE_DIR="${RESULTS_DIR}/plots"
 export METRICS_DIR="${RESULTS_DIR}/final_metrics"
 
 #-------------------------------------------------------------------------------

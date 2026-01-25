@@ -8,7 +8,6 @@
 #   --skip-simulation    Skip data simulation
 #   --skip-preprocessing Skip preprocessing
 #   --skip-calling       Skip variant calling
-#   --skip-benchmark     Skip benchmarking
 #   --callers LIST       Comma-separated callers (gatk,deepvariant,strelka2,freebayes)
 #   -h, --help           Show help
 #===============================================================================
@@ -24,7 +23,6 @@ SKIP_SETUP=false
 SKIP_SIMULATION=false
 SKIP_PREPROCESSING=false
 SKIP_CALLING=false
-SKIP_BENCHMARK=false
 RUN_GATK=true
 RUN_DEEPVARIANT=true
 RUN_STRELKA2=true
@@ -49,10 +47,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-calling)
             SKIP_CALLING=true
-            shift
-            ;;
-        --skip-benchmark)
-            SKIP_BENCHMARK=true
             shift
             ;;
         --callers)
@@ -110,7 +104,7 @@ TOTAL_START=$(date +%s)
 if [[ "${SKIP_SETUP}" == false ]]; then
     echo ""
     echo "┌──────────────────────────────────────────────────────────────────┐"
-    echo "│ STEP 0/8: Setting up environment                                 │"
+    echo "│ STEP 0/6: Setting up environment                                 │"
     echo "└──────────────────────────────────────────────────────────────────┘"
     bash "${SCRIPT_DIR}/00_setup_environment.sh"
 else
@@ -123,7 +117,7 @@ fi
 if [[ "${SKIP_SIMULATION}" == false ]]; then
     echo ""
     echo "┌──────────────────────────────────────────────────────────────────┐"
-    echo "│ STEP 1/8: Simulating mutations and reads                         │"
+    echo "│ STEP 1/6: Simulating mutations and reads                         │"
     echo "└──────────────────────────────────────────────────────────────────┘"
     bash "${SCRIPT_DIR}/01_simulate_data.sh"
 else
@@ -136,7 +130,7 @@ fi
 if [[ "${SKIP_PREPROCESSING}" == false ]]; then
     echo ""
     echo "┌──────────────────────────────────────────────────────────────────┐"
-    echo "│ STEP 2/8: Preprocessing (GATK Best Practices)                    │"
+    echo "│ STEP 2/6: Preprocessing (GATK Best Practices)                    │"
     echo "└──────────────────────────────────────────────────────────────────┘"
     bash "${SCRIPT_DIR}/02_preprocessing.sh"
 else
@@ -152,7 +146,7 @@ if [[ "${SKIP_CALLING}" == false ]]; then
     if [[ "${RUN_GATK}" == true ]]; then
         echo ""
         echo "┌──────────────────────────────────────────────────────────────────┐"
-        echo "│ STEP 3/8: GATK HaplotypeCaller                                   │"
+        echo "│ STEP 3/6: GATK HaplotypeCaller                                   │"
         echo "└──────────────────────────────────────────────────────────────────┘"
         bash "${SCRIPT_DIR}/03_variant_calling_gatk.sh"
     else
@@ -163,7 +157,7 @@ if [[ "${SKIP_CALLING}" == false ]]; then
     if [[ "${RUN_DEEPVARIANT}" == true ]]; then
         echo ""
         echo "┌──────────────────────────────────────────────────────────────────┐"
-        echo "│ STEP 4/8: DeepVariant (Docker)                                   │"
+        echo "│ STEP 4/6: DeepVariant (Docker)                                   │"
         echo "└──────────────────────────────────────────────────────────────────┘"
         bash "${SCRIPT_DIR}/04_variant_calling_deepvariant.sh"
     else
@@ -174,7 +168,7 @@ if [[ "${SKIP_CALLING}" == false ]]; then
     if [[ "${RUN_STRELKA2}" == true ]]; then
         echo ""
         echo "┌──────────────────────────────────────────────────────────────────┐"
-        echo "│ STEP 5/8: Strelka2 Germline (Docker)                             │"
+        echo "│ STEP 5/6: Strelka2 Germline (Docker)                             │"
         echo "└──────────────────────────────────────────────────────────────────┘"
         bash "${SCRIPT_DIR}/05_variant_calling_strelka2.sh"
     else
@@ -185,7 +179,7 @@ if [[ "${SKIP_CALLING}" == false ]]; then
     if [[ "${RUN_FREEBAYES}" == true ]]; then
         echo ""
         echo "┌──────────────────────────────────────────────────────────────────┐"
-        echo "│ STEP 6/8: FreeBayes                                              │"
+        echo "│ STEP 6/6: FreeBayes                                              │"
         echo "└──────────────────────────────────────────────────────────────────┘"
         bash "${SCRIPT_DIR}/06_variant_calling_freebayes.sh"
     else
@@ -195,28 +189,6 @@ if [[ "${SKIP_CALLING}" == false ]]; then
 else
     echo "[SKIP] Steps 3-6: Variant calling"
 fi
-
-#-------------------------------------------------------------------------------
-# Step 7: Benchmarking
-#-------------------------------------------------------------------------------
-if [[ "${SKIP_BENCHMARK}" == false ]]; then
-    echo ""
-    echo "┌──────────────────────────────────────────────────────────────────┐"
-    echo "│ STEP 7/8: Benchmarking                                           │"
-    echo "└──────────────────────────────────────────────────────────────────┘"
-    bash "${SCRIPT_DIR}/07_benchmarking.sh"
-else
-    echo "[SKIP] Step 7: Benchmarking"
-fi
-
-#-------------------------------------------------------------------------------
-# Step 8: Collect Metrics
-#-------------------------------------------------------------------------------
-echo ""
-echo "┌──────────────────────────────────────────────────────────────────┐"
-echo "│ STEP 8/8: Collecting metrics                                     │"
-echo "└──────────────────────────────────────────────────────────────────┘"
-bash "${SCRIPT_DIR}/08_collect_metrics.sh"
 
 #-------------------------------------------------------------------------------
 # Step 9: R Visualization
@@ -256,12 +228,11 @@ echo "  ├── Simulated data:   ${SIM_DIR}/"
 echo "  ├── Preprocessed:     ${PREPROC_DIR}/"
 echo "  ├── Variants:        ${VARIANT_DIR}/"
 echo "  ├── Benchmarks:      ${BENCH_DIR}/"
-echo "  ├── Metrics:         ${METRICS_DIR}/"
 echo "  └── Figures:         ${FIGURE_DIR}/"
 echo ""
 echo "Key files:"
-echo "  ├── Summary report:   ${METRICS_DIR}/summary_report.txt"
-echo "  ├── Benchmark TSV:   ${METRICS_DIR}/benchmark_summary.tsv"
+echo "  ├── Metrics TSV:     ${RESULTS_DIR}/metrics_long.tsv"
+echo "  ├── Runtime TSV:     ${RESULTS_DIR}/runtime.tsv"
 echo "  └── Runtime log:     ${LOG_DIR}/runtime.csv"
 echo ""
 echo "End time: $(date)"
@@ -273,7 +244,7 @@ echo ""
 echo "═══════════════════════════════════════════════════════════════════════"
 echo "FINAL BENCHMARK RESULTS"
 echo "═══════════════════════════════════════════════════════════════════════"
-if [[ -f "${METRICS_DIR}/benchmark_summary.tsv" ]]; then
-    column -t -s$'\t' "${METRICS_DIR}/benchmark_summary.tsv"
+if [[ -f "${RESULTS_DIR}/metrics_long.tsv" ]]; then
+    column -t -s$'\t' "${RESULTS_DIR}/metrics_long.tsv"
 fi
 echo "═══════════════════════════════════════════════════════════════════════"
