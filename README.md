@@ -94,29 +94,27 @@ tabix -l gile.vcf.gz # ở đồ án và repository này lấy tên là "chr22" 
 bcftools annotate --rename-chrs chr_map.txt input.vcf.gz -Oz -o output.vcf.gz
 
 # Tạo file BED chứa vùng non-N của chromosome
+
 python3 << 'EOF'
 from Bio import SeqIO
 import re
 
-fasta = "data/reference/chr22.fa"
-output = "data/reference/chr22_non_N_regions.bed"
+fasta = "chr22.fa"
+output = "chr22_non_N_regions.bed"
 
 with open(output, 'w') as out:
     for record in SeqIO.parse(fasta, "fasta"):
         seq = str(record.seq).upper()
         chrom = record.id
-        
-        # Tìm tất cả vùng non-N (ATGC)
-        for match in re.finditer(r'[ATGC]+', seq):
-            start = match.start()
-            end = match.end()
-            length = end - start
-            # Chỉ giữ vùng >= 1000 bp
-            if length >= 1000:
-                print(f"{chrom}\t{start}\t{end}", file=out)
+        for m in re.finditer(r'[ATGC]+', seq):
+            start = m.start()
+            end = m.end()
+            if end - start >= 1000:
+                out.write(f"{chrom}\t{start}\t{end}\n")
 
 print("Done!")
-EOF```
+EOF
+```
 
 #### 2.3. Tạo dữ liệu giả lập với Simutator
 
