@@ -36,6 +36,7 @@ ABS_OUT_DIR=$(cd "${OUT_DIR}" && pwd)
 
 BAM_BASENAME=$(basename "${FINAL_BAM}")
 REF_BASENAME=$(basename "${REF_FASTA}")
+BED_BASENAME=$(basename "${HIGH_CONF_BED}")
 
 #-------------------------------------------------------------------------------
 # 2. Run DeepVariant via Docker
@@ -58,6 +59,7 @@ docker run \
     --model_type=WGS \
     --ref="/ref/${REF_BASENAME}" \
     --reads="/input/${BAM_BASENAME}" \
+    --regions="/ref/${BED_BASENAME}" \
     --output_vcf="/output/${PREFIX}_${CALLER}_raw.vcf.gz" \
     --output_gvcf="/output/${PREFIX}_${CALLER}.g.vcf.gz" \
     --intermediate_results_dir="/output/intermediate" \

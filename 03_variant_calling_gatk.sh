@@ -33,6 +33,7 @@ gatk HaplotypeCaller \
     --java-options "${JAVA_OPTS}" \
     -R "${REF_FASTA}" \
     -I "${FINAL_BAM}" \
+    -L "${HIGH_CONF_BED}" \
     -O "${RAW_VCF}" \
     --standard-min-confidence-threshold-for-calling "${GATK_STAND_CALL_CONF}" \
     --native-pair-hmm-threads "${THREADS}" \
