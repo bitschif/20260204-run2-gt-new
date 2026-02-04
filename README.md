@@ -1,10 +1,15 @@
-# Variant Calling Benchmarking Pipeline
+# Variant Calling Benchmarking Pipeline 
 
 Pipeline so sánh hiệu suất 4 variant caller: GATK, DeepVariant, Strelka2, FreeBayes
 
 ## Quy trình thực hiện
 
 ### PHẦN 1: Tạo cấu trúc folder
+
+```bash
+git clone https://github.com/bitschif/variant-benchmarking.git
+cd variant-benchmarking/
+```
 
 ```bash
 mkdir -p data/reference
@@ -22,7 +27,7 @@ mkdir -p logs
 #### 2.1. Download Reference Genome (chr22 - hg38)
 
 ```bash
-cd data/reference
+#pwd: variant-benchmarking/data/reference
 
 # Download từ UCSC
 wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/chr22.fa.gz
@@ -44,7 +49,7 @@ gatk CreateSequenceDictionary -R chr22.fa -O chr22.dict
 Known sites giúp cải thiện chất lượng Base Quality Score Recalibration.
 
 ```bash
-cd data/reference
+# pwd: variant-benchmarking/data/reference
 
 # === dbSNP ===
 wget -c https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf
@@ -79,17 +84,17 @@ rm -f Mills_and_1000G_gold_standard.indels.hg38.vcf.gz Mills_and_1000G_gold_stan
 rm -f 1000G_phase1.snps.high_confidence.hg38.vcf.gz 1000G_phase1.snps.high_confidence.hg38.vcf.gz.tbi
 ```
 
-**Lưu ý về Chromosome Naming Convention:**
-- Reference genome từ UCSC sử dụng format "chr22"
-- Tất cả VCF files phải có chromosome names khớp với reference
-- Nếu gặp lỗi "chromosome not found", kiểm tra và rename chromosome:
+**Một số lưu ý:**
 
 ```bash
-# PWD = data/reference
-# Kiểm tra chromosome names trong VCF
+# pwd = variant-benchmarking/data/reference
+# Reference genome từ UCSC sử dụng format "chr22"
+# Tất cả VCF files phải có tên chromosome khớp với tên ở file reference
+# Kiểm tra tên chromosome trong VCF
 bcftools view -h file.vcf.gz | grep "^##contig"
 tabix -l gile.vcf.gz # ở đồ án và repository này lấy tên là "chr22" làm chuẩn
-  
+
+# Nếu gặp lỗi "chromosome not found", kiểm tra và đổi lại chromosome.
 # Cách đổi tên "22" thành "chr22" nếu cần
 bcftools annotate --rename-chrs chr_map.txt input.vcf.gz -Oz -o output.vcf.gz
 ```
@@ -124,8 +129,10 @@ EOF
 #### 2.3. Tạo dữ liệu giả lập với Simutator
 
 ```bash
-REF_FASTA="data/reference/chr22.fa"
-SIM_DIR="data/simulated"
+# pwd: variant-benchmarking/data
+
+REF_FASTA="/reference/chr22.fa"
+SIM_DIR="/simulated"
 PREFIX="SIMULATED_SAMPLE_chr22"
 
 simutator mutate_fasta \
@@ -140,8 +147,10 @@ simutator mutate_fasta \
 #### 2.4. Merge và chuẩn bị Truth VCF
 
 ```bash
-REF_FASTA="data/reference/chr22.fa"
-SIM_DIR="data/simulated"
+#pwd: variant-benchmarking/data
+
+REF_FASTA="/reference/chr22.fa"
+SIM_DIR="/simulated"
 PREFIX="SIMULATED_SAMPLE_chr22"
 TRUTH_VCF="${SIM_DIR}/${PREFIX}_truth.vcf.gz"
 
@@ -167,7 +176,9 @@ tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 #### 2.5. Tạo reads với ART Illumina
 
 ```bash
-SIM_DIR="data/simulated"
+#pwd: variant-benchmarking/data
+
+SIM_DIR="/simulated"
 PREFIX="SIMULATED_SAMPLE_chr22"
 MUTATED_FASTA="${SIM_DIR}/${PREFIX}_mutated_combined.fa"
 
@@ -214,6 +225,8 @@ awk -v OFS='\t' '{print $1, 0, $2}' "${REF_FAI}" > "${CALLABLE_BED}"
 Sau khi hoàn thành PHẦN 1 và PHẦN 2, chạy các script theo thứ tự:
 
 ```bash
+#pwd: variant-benchmarking
+
 bash 02_preprocessing.sh
 bash 03_variant_calling_gatk.sh
 bash 04_variant_calling_deepvariant.sh
@@ -253,12 +266,6 @@ bash 06_variant_calling_freebayes.sh
 
 ## Yêu cầu công cụ
 
-- bwa
-- samtools
-- bcftools
-- gatk
-- fastp
-- simutator
-- art_illumina
-- docker (cho DeepVariant và Strelka2)
-- freebayes
+- fastq, bwa, samtools, bcftools
+- simutator, art_illumina
+- gatk, freebayes, docker (cho DeepVariant và Strelka2)
