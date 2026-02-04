@@ -52,8 +52,10 @@ wget -c https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0
 
 # Extract chr22 và đảm bảo chromosome naming là "chr22"
 bgzip -c Homo_sapiens_assembly38.dbsnp138.vcf > dbsnp138.hg38.vcf.gz
-bcftools view -r chr22 Homo_sapiens_assembly38.dbsnp138.vcf -Oz -o dbsnp_146.hg38.chr22.vcf.gz
-tabix -p vcf dbsnp_146.hg38.chr22.vcf.gz
+tabix -p vcf dbsnp138.hg38.vcf.gz
+
+bcftools view -r chr22 -Oz -o dbsnp138.hg38.chr22.vcf.gz dbsnp138.hg38.vcf.gz
+tabix -p vcf dbsnp138.hg38.chr22.vcf.gz
 
 # === Mills and 1000G Gold Standard Indels ===
 wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
