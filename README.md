@@ -120,15 +120,22 @@ print("Done!")
 EOF
 ```
 
-#### 2.3. Tạo dữ liệu giả lập với Simutator
+#### 2.3. Tạo dữ liệu giả lập với simuG
 
 ```bash
 # pwd: variant-benchmarking/data
 
-simutator mutate_fasta \
-  --complex 50000:50:10:2:2:3 \
-  reference/chr22.fa \
-  simulated/SIMULATED_SAMPLE_chr22
+# Clone simuG nếu chưa có
+git clone https://github.com/yjx1217/simuG.git
+
+# Chạy simuG để tạo đột biến
+perl simuG/simuG.pl \
+  -refseq reference/chr22.fa \
+  -snp_count 7000 \
+  -indel_count 3500 \
+  -indel_min_len 1 \
+  -indel_max_len 5 \
+  -prefix simulated/SIMULATED_SAMPLE_chr22
 ```
 
 #### 2.4. Merge và chuẩn bị Truth VCF
@@ -136,19 +143,21 @@ simutator mutate_fasta \
 ```bash
 #pwd: variant-benchmarking/data
 
-REF_FASTA="/reference/chr22.fa"
-SIM_DIR="/simulated"
+REF_FASTA="reference/chr22.fa"
+SIM_DIR="simulated"
 PREFIX="SIMULATED_SAMPLE_chr22"
 TRUTH_VCF="${SIM_DIR}/${PREFIX}_truth.vcf.gz"
 
-# Merge tất cả VCF
-bcftools concat ${SIM_DIR}/${PREFIX}*.original.vcf | bcftools sort -Oz -o ${TRUTH_VCF}
+# Merge SNP và INDEL VCF từ simuG
+bcftools concat \
+  ${SIM_DIR}/${PREFIX}.refseq2simseq.SNP.vcf \
+  ${SIM_DIR}/${PREFIX}.refseq2simseq.INDEL.vcf | \
+bcftools sort -Oz -o ${TRUTH_VCF}
 tabix -p vcf ${TRUTH_VCF}
 
-# Tạo mutated FASTA
-SAMPLE_NAME=$(bcftools query -l ${TRUTH_VCF} | head -n 1)
-bcftools consensus -s "${SAMPLE_NAME}" -f "${REF_FASTA}" "${TRUTH_VCF}" > "${SIM_DIR}/${PREFIX}_mutated_combined.fa"
-samtools faidx "${SIM_DIR}/${PREFIX}_mutated_combined.fa"
+# simuG đã tạo mutated FASTA
+mv ${SIM_DIR}/${PREFIX}.simseq.genome.fa ${SIM_DIR}/${PREFIX}_mutated_combined.fa
+samtools faidx ${SIM_DIR}/${PREFIX}_mutated_combined.fa
 
 # Tạo file SNP và INDEL riêng
 bcftools +fill-tags ${TRUTH_VCF} -Oz -o "${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz" -- -t TYPE
@@ -236,5 +245,5 @@ bash 06_variant_calling_freebayes.sh
 ## Yêu cầu công cụ
 
 - fastq, bwa, samtools, bcftools
-- simutator, art_illumina
+- simuG, art_illumina
 - gatk, freebayes, docker (cho DeepVariant và Strelka2)

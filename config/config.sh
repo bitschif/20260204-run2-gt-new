@@ -42,14 +42,13 @@ export KNOWN_INDELS="${REF_DIR}/Mills_and_1000G_gold_standard.indels.hg38.chr22.
 export KNOWN_SNPS="${REF_DIR}/1000G_phase1.snps.high_confidence.hg38.chr22.vcf.gz"
 
 #-------------------------------------------------------------------------------
-# SIMULATION PARAMETERS (simutator + ART)
+# SIMULATION PARAMETERS (simuG + ART)
 #-------------------------------------------------------------------------------
-# SNP_DIST=7000 -> ~7,000 SNPs on chr22 (~50Mb)
-export SNP_DIST=7000
-export DEL_DIST=2000
-export DEL_LEN=3
-export INS_DIST=2000
-export INS_LEN=2
+# simuG parameters for mutation simulation
+export SNP_COUNT=7000          # Number of SNPs to simulate
+export INDEL_COUNT=3500        # Number of indels to simulate (combined del+ins)
+export INDEL_MIN_LEN=1         # Minimum indel length
+export INDEL_MAX_LEN=5         # Maximum indel length
 
 # ART Illumina parameters
 export COVERAGE=60
