@@ -131,46 +131,40 @@ ensure_chr_naming() {
 RECAL_TABLE="${PREPROC_DIR}/${PREFIX}_recal.table"
 FINAL_BAM="${PREPROC_DIR}/${PREFIX}_recal.bam"
 
-# Check if known sites exist
-if [[ -f "${DBSNP}" ]]; then
-    log_info "Running BQSR with known sites..."
-    
-    # Ensure chromosome naming convention matches reference (chr22)
-    # This is critical for BQSR to work correctly
-    for vcf in "${DBSNP}" "${KNOWN_INDELS}"; do
-        if [[ -f "${vcf}" ]]; then
-            ensure_chr_naming "${vcf}" || log_warn "Failed to verify chromosome naming for ${vcf}"
-        fi
-    done
-    
-    # BaseRecalibrator
-    KNOWN_SITES_ARGS=""
-    [[ -f "${DBSNP}" ]] && KNOWN_SITES_ARGS+="--known-sites ${DBSNP} "
-    [[ -f "${KNOWN_INDELS}" ]] && KNOWN_SITES_ARGS+="--known-sites ${KNOWN_INDELS} "
-    
-    gatk BaseRecalibrator \
-        --java-options "${JAVA_OPTS}" \
-        -R "${REF_FASTA}" \
-        -I "${MARKED_BAM}" \
-        ${KNOWN_SITES_ARGS} \
-        -O "${RECAL_TABLE}" \
-        2>&1 | tee "${LOG_DIR}/baserecalibrator.log"
-    
-    # ApplyBQSR
-    gatk ApplyBQSR \
-        --java-options "${JAVA_OPTS}" \
-        -R "${REF_FASTA}" \
-        -I "${MARKED_BAM}" \
-        --bqsr-recal-file "${RECAL_TABLE}" \
-        -O "${FINAL_BAM}" \
-        2>&1 | tee "${LOG_DIR}/applybqsr.log"
-    
-    samtools index "${FINAL_BAM}"
-    check_exit "BQSR"
-else
-    log_warn "Known sites not found, skipping BQSR"
-    FINAL_BAM="${MARKED_BAM}"
-fi
+log_info "Running BQSR with known sites..."
+
+# Ensure chromosome naming convention matches reference (chr22)
+# This is critical for BQSR to work correctly
+for vcf in "${DBSNP}" "${KNOWN_INDELS}"; do
+    if [[ -f "${vcf}" ]]; then
+        ensure_chr_naming "${vcf}" || log_warn "Failed to verify chromosome naming for ${vcf}"
+    fi
+done
+
+# BaseRecalibrator
+KNOWN_SITES_ARGS=""
+[[ -n "${DBSNP:-}" ]] && KNOWN_SITES_ARGS+="--known-sites ${DBSNP} "
+[[ -n "${KNOWN_INDELS:-}" ]] && KNOWN_SITES_ARGS+="--known-sites ${KNOWN_INDELS} "
+
+gatk BaseRecalibrator \
+    --java-options "${JAVA_OPTS}" \
+    -R "${REF_FASTA}" \
+    -I "${MARKED_BAM}" \
+    ${KNOWN_SITES_ARGS} \
+    -O "${RECAL_TABLE}" \
+    2>&1 | tee "${LOG_DIR}/baserecalibrator.log"
+
+# ApplyBQSR
+gatk ApplyBQSR \
+    --java-options "${JAVA_OPTS}" \
+    -R "${REF_FASTA}" \
+    -I "${MARKED_BAM}" \
+    --bqsr-recal-file "${RECAL_TABLE}" \
+    -O "${FINAL_BAM}" \
+    2>&1 | tee "${LOG_DIR}/applybqsr.log"
+
+samtools index "${FINAL_BAM}"
+check_exit "BQSR"
 
 #-------------------------------------------------------------------------------
 # 7. Filter by mapping quality
