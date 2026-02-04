@@ -125,9 +125,6 @@ EOF
 ```bash
 # pwd: variant-benchmarking/data
 
-# Clone simuG nếu chưa có
-git clone https://github.com/yjx1217/simuG.git
-
 # Chạy simuG để tạo đột biến
 perl simuG/simuG.pl \
   -refseq reference/chr22.fa \
@@ -174,7 +171,7 @@ tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 ```bash
 #pwd: variant-benchmarking/data
 
-SIM_DIR="/simulated"
+SIM_DIR="simulated"
 PREFIX="SIMULATED_SAMPLE_chr22"
 MUTATED_FASTA="${SIM_DIR}/${PREFIX}_mutated_combined.fa"
 
