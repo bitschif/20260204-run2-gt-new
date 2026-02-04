@@ -83,14 +83,19 @@ rm -f 1000G_phase1.snps.high_confidence.hg38.vcf.gz 1000G_phase1.snps.high_confi
 - Reference genome từ UCSC sử dụng format "chr22"
 - Tất cả VCF files phải có chromosome names khớp với reference
 - Nếu gặp lỗi "chromosome not found", kiểm tra và rename chromosome:
-  ```bash
-  # Kiểm tra chromosome names trong VCF
-  bcftools view -h file.vcf.gz | grep "^##contig"
-  tabix -l gile.vcf.gz # ở đồ án và repository này lấy tên là "chr22" làm chuẩn
+
+```bash
+# PWD = data/reference
+# Kiểm tra chromosome names trong VCF
+bcftools view -h file.vcf.gz | grep "^##contig"
+tabix -l gile.vcf.gz # ở đồ án và repository này lấy tên là "chr22" làm chuẩn
   
-  # Cách đổi tên "22" thành "chr22" nếu cần
-  bcftools annotate --rename-chrs chr_map.txt input.vcf.gz -Oz -o output.vcf.gz
-  ```
+# Cách đổi tên "22" thành "chr22" nếu cần
+bcftools annotate --rename-chrs chr_map.txt input.vcf.gz -Oz -o output.vcf.gz
+
+# Tạo file BED chứa vùng non-N của chromosome
+seqtk cutN -n 1 -g chr22.fa > chr22_non_N_regions.bed
+```
 
 #### 2.3. Tạo dữ liệu giả lập với Simutator
 
