@@ -29,16 +29,13 @@ mkdir -p logs
 ```bash
 #pwd: variant-benchmarking/data/reference
 
-# Download từ UCSC
+# download từ UCSC
 wget https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/chr22.fa.gz
 
-# Hoặc dùng curl
-curl -L -O https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/chr22.fa.gz
-
-# Giải nén
+# giải nén
 gunzip chr22.fa.gz
 
-# Index reference
+# index reference
 samtools faidx chr22.fa
 bwa index chr22.fa
 gatk CreateSequenceDictionary -R chr22.fa -O chr22.dict
@@ -66,7 +63,7 @@ tabix -p vcf dbsnp138.hg38.chr22.vcf.gz
 wget -c https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
 wget -c https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi
 
-# Extract chr22
+# extract chr22
 bcftools view -r chr22 Mills_and_1000G_gold_standard.indels.hg38.vcf.gz -Oz -o Mills_and_1000G_gold_standard.indels.hg38.chr22.vcf.gz
 tabix -p vcf Mills_and_1000G_gold_standard.indels.hg38.chr22.vcf.gz
 
@@ -74,11 +71,11 @@ tabix -p vcf Mills_and_1000G_gold_standard.indels.hg38.chr22.vcf.gz
 wget -c https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz
 wget -c https://storage.googleapis.com/gcp-public-data--broad-references/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz.tbi
 
-# Extract chr22
+# extract chr22
 bcftools view -r chr22 1000G_phase1.snps.high_confidence.hg38.vcf.gz -Oz -o 1000G_phase1.snps.high_confidence.hg38.chr22.vcf.gz
 tabix -p vcf 1000G_phase1.snps.high_confidence.hg38.chr22.vcf.gz
 
-# Dọn dẹp file gốc (tùy chọn)
+# dọn dẹp file gốc (tùy chọn)
 rm -f Homo_sapiens_assembly38.dbsnp138.vcf Homo_sapiens_assembly38.dbsnp138.vcf.idx
 rm -f Mills_and_1000G_gold_standard.indels.hg38.vcf.gz Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi
 rm -f 1000G_phase1.snps.high_confidence.hg38.vcf.gz 1000G_phase1.snps.high_confidence.hg38.vcf.gz.tbi
@@ -88,17 +85,18 @@ rm -f 1000G_phase1.snps.high_confidence.hg38.vcf.gz 1000G_phase1.snps.high_confi
 
 ```bash
 # pwd = variant-benchmarking/data/reference
-# Reference genome từ UCSC sử dụng format "chr22"
-# Tất cả VCF files phải có tên chromosome khớp với tên ở file reference
-# Kiểm tra tên chromosome trong VCF
+
+# reference genome từ UCSC sử dụng format "chr22"
+# tất cả VCF files phải có tên chromosome khớp với tên ở file reference
+# kiểm tra tên chromosome trong VCF
 bcftools view -h file.vcf.gz | grep "^##contig"
 tabix -l gile.vcf.gz # ở đồ án và repository này lấy tên là "chr22" làm chuẩn
 
-# Nếu gặp lỗi "chromosome not found", kiểm tra và đổi lại chromosome.
+# nếu gặp lỗi "chromosome not found", kiểm tra và đổi lại chromosome
 # Cách đổi tên "22" thành "chr22" nếu cần
 bcftools annotate --rename-chrs chr_map.txt input.vcf.gz -Oz -o output.vcf.gz
 
-# Tạo file BED chứa vùng non-N của chromosome
+# tạo file BED chứa vùng non-N của chromosome
 python3 << 'EOF'
 from Bio import SeqIO
 import re
@@ -125,7 +123,10 @@ EOF
 ```bash
 # pwd: variant-benchmarking/data
 
-# Chạy simuG để tạo đột biến
+# clone simuG về folder data
+git clone https://github.com/yjx1217/simuG.git
+
+# dùng simuG tạo đột biến
 perl simuG/simuG.pl \
   -refseq reference/chr22.fa \
   -snp_count 7000 \
@@ -145,7 +146,7 @@ SIM_DIR="simulated"
 PREFIX="SIMULATED_SAMPLE_chr22"
 TRUTH_VCF="${SIM_DIR}/${PREFIX}_truth.vcf.gz"
 
-# Merge SNP và INDEL VCF từ simuG
+# merge SNP và INDEL VCF từ simuG
 bcftools concat \
   ${SIM_DIR}/${PREFIX}.refseq2simseq.SNP.vcf \
   ${SIM_DIR}/${PREFIX}.refseq2simseq.INDEL.vcf | \
@@ -156,7 +157,7 @@ tabix -p vcf ${TRUTH_VCF}
 mv ${SIM_DIR}/${PREFIX}.simseq.genome.fa ${SIM_DIR}/${PREFIX}_mutated_combined.fa
 samtools faidx ${SIM_DIR}/${PREFIX}_mutated_combined.fa
 
-# Tạo file SNP và INDEL riêng
+# tạo file SNP và INDEL riêng
 bcftools +fill-tags ${TRUTH_VCF} -Oz -o "${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz" -- -t TYPE
 tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz"
 
@@ -187,7 +188,7 @@ art_illumina \
     -o "${SIM_DIR}/${PREFIX}_" \
     -na
 
-# Đổi tên và nén
+# đổi tên và nén
 mv "${SIM_DIR}/${PREFIX}_1.fq" "${SIM_DIR}/${PREFIX}_R1.fastq"
 mv "${SIM_DIR}/${PREFIX}_2.fq" "${SIM_DIR}/${PREFIX}_R2.fastq"
 gzip "${SIM_DIR}/${PREFIX}_R1.fastq"
