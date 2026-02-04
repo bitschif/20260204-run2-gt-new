@@ -37,9 +37,9 @@ export REF_DICT="${REF_DIR}/${CHR_TO_USE}.dict"
 export REF_FAI="${REF_DIR}/${CHR_TO_USE}.fa.fai"
 
 # Known sites for BQSR (GATK Bundle)
-export DBSNP="${REF_DIR}/dbsnp_146.hg38.${CHR_TO_USE}.vcf.gz"
-export KNOWN_INDELS="${REF_DIR}/Mills_and_1000G_gold_standard.indels.hg38.${CHR_TO_USE}.vcf.gz"
-export KNOWN_SNPS="${REF_DIR}/1000G_phase1.snps.high_confidence.hg38.${CHR_TO_USE}.vcf.gz"
+export DBSNP="${REF_DIR}/dbsnp_146.hg38.chr22.vcf.gz"
+export KNOWN_INDELS="${REF_DIR}/Mills_and_1000G_gold_standard.indels.hg38.chr22.vcf.gz"
+export KNOWN_SNPS="${REF_DIR}/1000G_phase1.snps.high_confidence.hg38.chr22.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # SIMULATION PARAMETERS (simutator + ART)

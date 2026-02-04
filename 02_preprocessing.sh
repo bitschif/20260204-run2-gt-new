@@ -110,12 +110,38 @@ check_exit "MarkDuplicates"
 #-------------------------------------------------------------------------------
 log_info "[6/6] Base Quality Score Recalibration..."
 
+# Ensure chromosome naming consistency
+ensure_chr_naming() {
+    local vcf_file="$1"
+    if [[ ! -f "${vcf_file}" ]]; then
+        return 1
+    fi
+    
+    local first_chr=$(bcftools view -H "${vcf_file}" 2>/dev/null | head -1 | cut -f1)
+    if [[ -n "${first_chr}" && "${first_chr}" != chr* ]]; then
+        log_warn "Renaming chromosomes in ${vcf_file} to match reference..."
+        local tmp_renamed="${vcf_file%.vcf.gz}_renamed.vcf.gz"
+        "${SCRIPT_DIR}/scripts/rename_chromosomes.sh" "${vcf_file}" "${tmp_renamed}"
+        mv "${tmp_renamed}" "${vcf_file}"
+        mv "${tmp_renamed}.tbi" "${vcf_file}.tbi" 2>/dev/null || tabix -p vcf "${vcf_file}"
+    fi
+    return 0
+}
+
 RECAL_TABLE="${PREPROC_DIR}/${PREFIX}_recal.table"
 FINAL_BAM="${PREPROC_DIR}/${PREFIX}_recal.bam"
 
 # Check if known sites exist
 if [[ -f "${DBSNP}" ]]; then
     log_info "Running BQSR with known sites..."
+    
+    # Ensure chromosome naming convention matches reference (chr22)
+    # This is critical for BQSR to work correctly
+    for vcf in "${DBSNP}" "${KNOWN_INDELS}"; do
+        if [[ -f "${vcf}" ]]; then
+            ensure_chr_naming "${vcf}" || log_warn "Failed to verify chromosome naming for ${vcf}"
+        fi
+    done
     
     # BaseRecalibrator
     KNOWN_SITES_ARGS=""
