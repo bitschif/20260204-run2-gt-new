@@ -137,7 +137,7 @@ perl simuG/simuG.pl \
   -prefix simulated/SIMULATED_SAMPLE_chr22
 ```
 
-#### 2.4. Merge và chuẩn bị Truth VCF
+#### 2.4. Merge các file VCF output của simuG tạo truth VCF
 
 ```bash
 # pwd: variant-benchmarking/data
@@ -164,7 +164,7 @@ tabix -p vcf simulated/SIMULATED_SAMPLE_chr22_truth.vcf.gz
 
 ```
 
-#### 2.5. Tạo reads với ART Illumina
+#### 2.5. Tạo file fastq giả lập bằng ART Illumina
 
 ```bash
 #pwd: variant-benchmarking/data
