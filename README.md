@@ -195,17 +195,6 @@ gzip "${SIM_DIR}/${PREFIX}_R1.fastq"
 gzip "${SIM_DIR}/${PREFIX}_R2.fastq"
 ```
 
-#### 2.6. Tạo callable regions BED
-
-```bash
-# pwd: variant-benchmarking/data
-
-REF_FAI="/reference/chr22.fa.fai"
-HIGH_CONF_BED="/simulated/callable_regions.bed"
-
-awk -v OFS='\t' '{print $1, 0, $2}' "${REF_FAI}" > "${HIGH_CONF_BED}"
-```
-
 ### PHẦN 3: Chạy Pipeline
 
 Sau khi hoàn thành PHẦN 1 và PHẦN 2, chạy các script theo thứ tự:
@@ -230,7 +219,8 @@ bash 06_variant_calling_freebayes.sh
 │   └── helper_functions.sh
 ├── data/
 │   ├── reference/
-│   │   └── chr22.fa
+│   │   ├── chr22.fa
+│   │   └── chr22_non_N_regions.bed
 │   └── simulated/
 │       ├── *_truth.vcf.gz
 │       ├── *_R1.fastq.gz

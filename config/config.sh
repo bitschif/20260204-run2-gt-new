@@ -94,7 +94,7 @@ export FB_MIN_ALT_FRACTION=0.2
 # OUTPUT
 #-------------------------------------------------------------------------------
 export TRUTH_VCF="${SIM_DIR}/${PREFIX}_truth.vcf.gz"
-export HIGH_CONF_BED="${SIM_DIR}/callable_regions.bed"
+export HIGH_CONF_BED="${REF_DIR}/chr22_non_N_regions.bed"
 
 echo "[CONFIG] Loaded successfully"
 echo "[CONFIG] Project: ${PROJECT_DIR}"
