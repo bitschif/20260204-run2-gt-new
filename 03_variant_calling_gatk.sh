@@ -50,7 +50,7 @@ gatk SelectVariants -V "${RAW_VCF}" -select-type SNP -O "${OUT_DIR}/snps_raw.vcf
 gatk VariantFiltration \
     -V "${OUT_DIR}/snps_raw.vcf.gz" \
     -O "${OUT_DIR}/snps_filtered.vcf.gz" \
-    --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || SOR > 3.0" \
+    --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || SOR > 3.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
     --filter-name "SNP_FILTER"
 
 # INDELs
@@ -58,7 +58,7 @@ gatk SelectVariants -V "${RAW_VCF}" -select-type INDEL -O "${OUT_DIR}/indels_raw
 gatk VariantFiltration \
     -V "${OUT_DIR}/indels_raw.vcf.gz" \
     -O "${OUT_DIR}/indels_filtered.vcf.gz" \
-    --filter-expression "QD < 2.0 || FS > 200.0 || SOR > 10.0" \
+    --filter-expression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || ReadPosRankSum < -20.0" \
     --filter-name "INDEL_FILTER"
 
 # Merge

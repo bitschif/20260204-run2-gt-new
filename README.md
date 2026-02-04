@@ -39,7 +39,59 @@ bwa index chr22.fa
 gatk CreateSequenceDictionary -R chr22.fa -O chr22.dict
 ```
 
-#### 2.2. Tạo dữ liệu giả lập với Simutator
+#### 2.2. Download Known Sites cho BQSR (Tùy chọn nhưng khuyến nghị)
+
+Known sites giúp cải thiện chất lượng Base Quality Score Recalibration.
+
+```bash
+cd data/reference
+
+# === dbSNP ===
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx
+
+# Extract chr22 và đảm bảo chromosome naming là "chr22"
+bcftools view -r chr22 Homo_sapiens_assembly38.dbsnp138.vcf -Oz -o dbsnp_146.hg38.chr22.vcf.gz
+tabix -p vcf dbsnp_146.hg38.chr22.vcf.gz
+
+# === Mills and 1000G Gold Standard Indels ===
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi
+
+# Extract chr22
+bcftools view -r chr22 Mills_and_1000G_gold_standard.indels.hg38.vcf.gz -Oz -o Mills_and_1000G_gold_standard.indels.hg38.chr22.vcf.gz
+tabix -p vcf Mills_and_1000G_gold_standard.indels.hg38.chr22.vcf.gz
+
+# === 1000G Phase 1 SNPs (Tùy chọn) ===
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/1000G_phase1.snps.high_confidence.hg38.vcf.gz.tbi
+
+# Extract chr22
+bcftools view -r chr22 1000G_phase1.snps.high_confidence.hg38.vcf.gz -Oz -o 1000G_phase1.snps.high_confidence.hg38.chr22.vcf.gz
+tabix -p vcf 1000G_phase1.snps.high_confidence.hg38.chr22.vcf.gz
+
+# Dọn dẹp file gốc (tùy chọn)
+rm -f Homo_sapiens_assembly38.dbsnp138.vcf Homo_sapiens_assembly38.dbsnp138.vcf.idx
+rm -f Mills_and_1000G_gold_standard.indels.hg38.vcf.gz Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi
+rm -f 1000G_phase1.snps.high_confidence.hg38.vcf.gz 1000G_phase1.snps.high_confidence.hg38.vcf.gz.tbi
+```
+
+**Lưu ý về Chromosome Naming Convention:**
+- Reference genome từ UCSC sử dụng format "chr22"
+- Tất cả VCF files phải có chromosome names khớp với reference
+- Nếu gặp lỗi "chromosome not found", kiểm tra và rename chromosome:
+  ```bash
+  # Kiểm tra chromosome names trong VCF
+  bcftools view -h file.vcf.gz | grep "^##contig"
+  
+  # Rename "22" thành "chr22" nếu cần
+  bcftools annotate --rename-chrs chr_map.txt input.vcf.gz -Oz -o output.vcf.gz
+  
+  # File chr_map.txt chứa:
+  # 22 chr22
+  ```
+
+#### 2.3. Tạo dữ liệu giả lập với Simutator
 
 ```bash
 REF_FASTA="data/reference/chr22.fa"
@@ -55,7 +107,7 @@ simutator mutate_fasta \
     "${SIM_DIR}/${PREFIX}"
 ```
 
-#### 2.3. Merge và chuẩn bị Truth VCF
+#### 2.4. Merge và chuẩn bị Truth VCF
 
 ```bash
 REF_FASTA="data/reference/chr22.fa"
@@ -82,7 +134,7 @@ tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
 tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 ```
 
-#### 2.4. Tạo reads với ART Illumina
+#### 2.5. Tạo reads với ART Illumina
 
 ```bash
 SIM_DIR="data/simulated"
@@ -108,7 +160,7 @@ gzip "${SIM_DIR}/${PREFIX}_R1.fastq"
 gzip "${SIM_DIR}/${PREFIX}_R2.fastq"
 ```
 
-#### 2.5. Tạo callable regions BED
+#### 2.6. Tạo callable regions BED
 
 ```bash
 REF_FAI="data/reference/chr22.fa.fai"
