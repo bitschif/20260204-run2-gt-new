@@ -153,18 +153,14 @@ bcftools concat \
 bcftools sort -Oz -o ${TRUTH_VCF}
 tabix -p vcf ${TRUTH_VCF}
 
-# simuG đã tạo mutated FASTA
-mv ${SIM_DIR}/${PREFIX}.simseq.genome.fa ${SIM_DIR}/${PREFIX}_mutated_combined.fa
-samtools faidx ${SIM_DIR}/${PREFIX}_mutated_combined.fa
+# tabix cho file SNP và INDEL gốc từ simuG (để benchmark riêng từng loại nếu cần)
+bgzip -c ${SIM_DIR}/${PREFIX}.refseq2simseq.SNP.vcf > ${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz
+bgzip -c ${SIM_DIR}/${PREFIX}.refseq2simseq.INDEL.vcf > ${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz
+tabix -p vcf ${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz
+tabix -p vcf ${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz
 
-# tạo file SNP và INDEL riêng
-bcftools +fill-tags ${TRUTH_VCF} -Oz -o "${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz" -- -t TYPE
-tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz"
-
-bcftools view -i 'TYPE="snp"' "${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz" -Oz -o "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
-bcftools view -i 'TYPE="indel"' "${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz" -Oz -o "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
-tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
-tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
+# index file FASTA từ simuG (không cần đổi tên)
+samtools faidx ${SIM_DIR}/${PREFIX}.simseq.genome.fa
 ```
 
 #### 2.5. Tạo reads với ART Illumina
@@ -174,7 +170,7 @@ tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 
 SIM_DIR="simulated"
 PREFIX="SIMULATED_SAMPLE_chr22"
-MUTATED_FASTA="${SIM_DIR}/${PREFIX}_mutated_combined.fa"
+MUTATED_FASTA="${SIM_DIR}/${PREFIX}.simseq.genome.fa"
 
 art_illumina \
     -ss HS25 \
