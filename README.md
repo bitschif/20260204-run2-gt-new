@@ -92,9 +92,14 @@ tabix -l gile.vcf.gz # ở đồ án và repository này lấy tên là "chr22" 
   
 # Cách đổi tên "22" thành "chr22" nếu cần
 bcftools annotate --rename-chrs chr_map.txt input.vcf.gz -Oz -o output.vcf.gz
+```
 
-# Tạo file BED chứa vùng non-N của chromosome
+**Quan trọng: Tạo file BED chứa vùng non-N của chromosome**
 
+File này rất quan trọng vì chr22 có nhiều vùng N (đặc biệt ở đầu chromosome ~0-16Mb). Pipeline sẽ sử dụng file này để giới hạn variant calling và benchmarking chỉ trong vùng có sequence thật (ATGC).
+
+```bash
+# PWD = data/reference
 python3 << 'EOF'
 from Bio import SeqIO
 import re
@@ -187,11 +192,21 @@ gzip "${SIM_DIR}/${PREFIX}_R2.fastq"
 
 #### 2.6. Tạo callable regions BED
 
+**Lưu ý quan trọng:** Pipeline hiện sử dụng file `chr22_non_N_regions.bed` (đã tạo ở bước 2.1) thay vì `callable_regions.bed` để tránh variant calling ở vùng N-region.
+
+File BED này được tạo tự động trong bước 2.1 và được cấu hình trong `config/config.sh` như sau:
+```bash
+export NON_N_BED="${REF_DIR}/chr22_non_N_regions.bed"
+export HIGH_CONF_BED="${NON_N_BED}"
+```
+
+Nếu bạn muốn sử dụng toàn bộ chromosome (không khuyến nghị), bạn có thể tạo callable regions BED như sau:
 ```bash
 REF_FAI="data/reference/chr22.fa.fai"
-HIGH_CONF_BED="data/simulated/callable_regions.bed"
+CALLABLE_BED="data/simulated/callable_regions.bed"
 
-awk -v OFS='\t' '{print $1, 0, $2}' "${REF_FAI}" > "${HIGH_CONF_BED}"
+awk -v OFS='\t' '{print $1, 0, $2}' "${REF_FAI}" > "${CALLABLE_BED}"
+# Sau đó thay đổi HIGH_CONF_BED trong config/config.sh để trỏ đến file này
 ```
 
 ### PHẦN 3: Chạy Pipeline

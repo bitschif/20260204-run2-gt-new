@@ -38,6 +38,24 @@ ABS_OUT_DIR=$(cd "${OUT_DIR}" && pwd)
 BAM_BASENAME=$(basename "${FINAL_BAM}")
 REF_BASENAME=$(basename "${REF_FASTA}")
 
+# Strelka2 requires bgzip-compressed and tabix-indexed BED file
+BED_BASENAME=$(basename "${HIGH_CONF_BED}")
+BED_GZ="${HIGH_CONF_BED}.gz"
+
+if [[ ! -f "${BED_GZ}" ]] || [[ ! -f "${BED_GZ}.tbi" ]]; then
+    log_info "Preparing bgzipped and indexed BED file for Strelka2..."
+    check_tool bgzip || exit 1
+    check_tool tabix || exit 1
+    
+    bgzip -c "${HIGH_CONF_BED}" > "${BED_GZ}"
+    tabix -p bed "${BED_GZ}"
+    
+    check_file "${BED_GZ}" || exit 1
+    check_file "${BED_GZ}.tbi" || exit 1
+fi
+
+BED_GZ_BASENAME=$(basename "${BED_GZ}")
+
 #-------------------------------------------------------------------------------
 # 2. Configure Strelka2 via Docker
 #-------------------------------------------------------------------------------
@@ -52,6 +70,7 @@ docker run \
     configureStrelkaGermlineWorkflow.py \
     --bam "/input/${BAM_BASENAME}" \
     --referenceFasta "/ref/${REF_BASENAME}" \
+    --callRegions "/ref/${BED_GZ_BASENAME}" \
     --runDir "/output/strelka_run" \
     2>&1 | tee "${LOG_DIR}/${CALLER}_config.log"
 
