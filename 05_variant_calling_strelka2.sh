@@ -42,10 +42,14 @@ REF_BASENAME=$(basename "${REF_FASTA}")
 BED_BASENAME=$(basename "${HIGH_CONF_BED}")
 BED_GZ="${HIGH_CONF_BED}.gz"
 
+# Prepare bgzipped and indexed BED if either file is missing
 if [[ ! -f "${BED_GZ}" ]] || [[ ! -f "${BED_GZ}.tbi" ]]; then
     log_info "Preparing bgzipped and indexed BED file for Strelka2..."
     check_tool bgzip || exit 1
     check_tool tabix || exit 1
+    
+    # Remove existing files to ensure clean state
+    rm -f "${BED_GZ}" "${BED_GZ}.tbi"
     
     bgzip -c "${HIGH_CONF_BED}" > "${BED_GZ}"
     tabix -p bed "${BED_GZ}"
