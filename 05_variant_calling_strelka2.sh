@@ -52,6 +52,8 @@ docker run \
     configureStrelkaGermlineWorkflow.py \
     --bam "/input/${BAM_BASENAME}" \
     --referenceFasta "/ref/${REF_BASENAME}" \
+    --callRegions "/ref/chr22_exome_targets_padded.bed.gz" \
+    --exome \
     --runDir "/output/strelka_run" \
     2>&1 | tee "${LOG_DIR}/${CALLER}_config.log"
 

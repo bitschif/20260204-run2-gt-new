@@ -41,6 +41,29 @@ bwa index chr22.fa
 gatk CreateSequenceDictionary -R chr22.fa -O chr22.dict
 ```
 
+#### 2.1b. (Tuỳ chọn) Tạo BED file exome cho WES
+
+```bash
+# pwd: variant-benchmarking/data/reference
+
+# Download GENCODE annotation
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/gencode.v44.annotation.gtf.gz
+gunzip gencode.v44.annotation.gtf.gz
+
+# Extract chr22 exons → BED → merge → padding 100bp
+grep "^chr22" gencode.v44.annotation.gtf | \
+  awk '$3=="exon" {print $1"\t"$4-1"\t"$5}' | \
+  sort -k1,1 -k2,2n | \
+  bedtools merge -i - > chr22_exome_targets.bed
+
+bedtools slop -i chr22_exome_targets.bed -g chr22.fa.fai -b 100 | \
+  bedtools merge -i - > chr22_exome_targets_padded.bed
+
+# Cho Strelka2 (cần bgzip + tabix)
+bgzip -c chr22_exome_targets_padded.bed > chr22_exome_targets_padded.bed.gz
+tabix -p bed chr22_exome_targets_padded.bed.gz
+```
+
 #### 2.2. Download Known Sites cho BQSR
 
 Known sites giúp cải thiện chất lượng Base Quality Score Recalibration.
