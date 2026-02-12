@@ -34,6 +34,7 @@ gatk HaplotypeCaller \
     -R "${REF_FASTA}" \
     -I "${FINAL_BAM}" \
     -O "${RAW_VCF}" \
+    -L "${WES_BED}" \
     --standard-min-confidence-threshold-for-calling "${GATK_STAND_CALL_CONF}" \
     --native-pair-hmm-threads "${THREADS}" \
     2>&1 | tee "${LOG_DIR}/${CALLER}.log"

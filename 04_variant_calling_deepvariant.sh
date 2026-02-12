@@ -36,13 +36,14 @@ ABS_OUT_DIR=$(cd "${OUT_DIR}" && pwd)
 
 BAM_BASENAME=$(basename "${FINAL_BAM}")
 REF_BASENAME=$(basename "${REF_FASTA}")
+WES_BED_BASENAME=$(basename "${WES_BED}")
 
 #-------------------------------------------------------------------------------
 # 2. Run DeepVariant via Docker
 #-------------------------------------------------------------------------------
 log_info "Running DeepVariant via Docker..."
 log_info "  Image: ${DEEPVARIANT_IMAGE}"
-log_info "  Model: WGS"
+log_info "  Model: WES"
 
 DOCKER_USER_NAME="${RUN_AS_USER:-${USER:-hxt}}"
 DOCKER_USER="$(id -u "${DOCKER_USER_NAME}")":"$(id -g "${DOCKER_USER_NAME}")"
@@ -55,13 +56,14 @@ docker run \
     -v "${ABS_OUT_DIR}:/output" \
     ${DEEPVARIANT_IMAGE} \
     /opt/deepvariant/bin/run_deepvariant \
-    --model_type=WGS \
+    --model_type=WES \
     --ref="/ref/${REF_BASENAME}" \
     --reads="/input/${BAM_BASENAME}" \
     --output_vcf="/output/${PREFIX}_${CALLER}_raw.vcf.gz" \
     --output_gvcf="/output/${PREFIX}_${CALLER}.g.vcf.gz" \
     --intermediate_results_dir="/output/intermediate" \
     --num_shards="${THREADS}" \
+    --regions="/ref/${WES_BED_BASENAME}" \
     2>&1 | tee "${LOG_DIR}/${CALLER}.log"
 
 check_exit "DeepVariant"

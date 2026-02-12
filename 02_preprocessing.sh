@@ -151,6 +151,7 @@ gatk BaseRecalibrator \
     -R "${REF_FASTA}" \
     -I "${MARKED_BAM}" \
     ${KNOWN_SITES_ARGS} \
+    -L "${WES_BED}" \
     -O "${RECAL_TABLE}" \
     2>&1 | tee "${LOG_DIR}/baserecalibrator.log"
 
@@ -160,6 +161,7 @@ gatk ApplyBQSR \
     -R "${REF_FASTA}" \
     -I "${MARKED_BAM}" \
     --bqsr-recal-file "${RECAL_TABLE}" \
+    -L "${WES_BED}" \
     -O "${FINAL_BAM}" \
     2>&1 | tee "${LOG_DIR}/applybqsr.log"
 

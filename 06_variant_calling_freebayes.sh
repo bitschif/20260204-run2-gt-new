@@ -33,6 +33,7 @@ RAW_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_raw.vcf"
 freebayes \
     -f "${REF_FASTA}" \
     -b "${FINAL_BAM}" \
+    -t "${WES_BED}" \
     --min-alternate-count "${FB_MIN_ALT_COUNT}" \
     --min-alternate-fraction "${FB_MIN_ALT_FRACTION}" \
     --min-mapping-quality "${MIN_MAPPING_QUALITY}" \

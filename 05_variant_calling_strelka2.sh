@@ -37,6 +37,7 @@ ABS_OUT_DIR=$(cd "${OUT_DIR}" && pwd)
 
 BAM_BASENAME=$(basename "${FINAL_BAM}")
 REF_BASENAME=$(basename "${REF_FASTA}")
+WES_BED_GZ_BASENAME=$(basename "${WES_BED_GZ}")
 
 #-------------------------------------------------------------------------------
 # 2. Configure Strelka2 via Docker
@@ -52,6 +53,8 @@ docker run \
     configureStrelkaGermlineWorkflow.py \
     --bam "/input/${BAM_BASENAME}" \
     --referenceFasta "/ref/${REF_BASENAME}" \
+    --callRegions "/ref/${WES_BED_GZ_BASENAME}" \
+    --exome \
     --runDir "/output/strelka_run" \
     2>&1 | tee "${LOG_DIR}/${CALLER}_config.log"
 
